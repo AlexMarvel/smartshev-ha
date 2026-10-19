@@ -113,6 +113,68 @@ def load_integration():
 API, FLOW = load_integration()
 
 
+def load_entity_platforms():
+    """Load the actual entities with only Home Assistant framework boundaries doubled."""
+    root = Path(__file__).resolve().parents[1] / "custom_components" / "shevlogger"
+    name = "_shevlogger_entity_tests"
+    package = module(name, ShevLoggerRuntimeData=object)
+    package.__path__ = [str(root)]
+
+    class CoordinatorEntity:
+        def __class_getitem__(cls, item):
+            return cls
+
+        def __init__(self, coordinator):
+            self.coordinator = coordinator
+
+    replacements = {
+        name: package,
+        f"{name}.api": module(f"{name}.api", ShevLoggerError=Exception),
+        f"{name}.const": module(f"{name}.const", DOMAIN="shevlogger"),
+        f"{name}.coordinator": module(
+            f"{name}.coordinator", ShevLoggerCoordinator=object
+        ),
+        "homeassistant": module("homeassistant"),
+        "homeassistant.components": module("homeassistant.components"),
+        "homeassistant.components.sensor": module(
+            "homeassistant.components.sensor", SensorEntity=type("SensorEntity", (), {})
+        ),
+        "homeassistant.components.number": module(
+            "homeassistant.components.number", NumberEntity=type("NumberEntity", (), {})
+        ),
+        "homeassistant.config_entries": module(
+            "homeassistant.config_entries", ConfigEntry=object
+        ),
+        "homeassistant.core": module("homeassistant.core", HomeAssistant=object),
+        "homeassistant.exceptions": module(
+            "homeassistant.exceptions", HomeAssistantError=Exception
+        ),
+        "homeassistant.helpers": module("homeassistant.helpers"),
+        "homeassistant.helpers.device_registry": module(
+            "homeassistant.helpers.device_registry", DeviceInfo=dict
+        ),
+        "homeassistant.helpers.entity": module(
+            "homeassistant.helpers.entity", EntityCategory=SimpleNamespace(CONFIG="config")
+        ),
+        "homeassistant.helpers.entity_platform": module(
+            "homeassistant.helpers.entity_platform", AddEntitiesCallback=object
+        ),
+        "homeassistant.helpers.update_coordinator": module(
+            "homeassistant.helpers.update_coordinator", CoordinatorEntity=CoordinatorEntity
+        ),
+    }
+    with patch.dict(sys.modules, replacements):
+        loaded = {}
+        for part in ("sensor_metadata", "entity", "sensor", "number"):
+            spec = importlib.util.spec_from_file_location(
+                f"{name}.{part}", root / f"{part}.py"
+            )
+            loaded[part] = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = loaded[part]
+            spec.loader.exec_module(loaded[part])
+        return loaded["sensor"], loaded["number"]
+
+
 class FakeHass:
     def __init__(self):
         self.entry = SimpleNamespace(

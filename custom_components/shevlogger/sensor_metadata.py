@@ -35,6 +35,32 @@ ENERGY_COUNTER_TERMS = frozenset(
 )
 
 
+def resolve_sensor_metadata(
+    description: dict[str, Any], mapping: dict[str, Any] | None = None
+) -> tuple[str | None, str | None, str | None]:
+    """Prefer declared canonical meanings, without changing the source key.
+
+    Explicit schema metadata remains authoritative. Older profiles may only
+    declare meaning through mapping (for example battery_soc -> battery).
+    Unmapped fields retain the existing name/key inference.
+    """
+    meanings = [
+        {**description, "key": canonical, "name": ""}
+        for canonical, source_key in (mapping or {}).items()
+        if source_key == description.get("key")
+    ]
+    meanings.append(description)
+    unit = next(filter(None, (inferred_unit(item) for item in meanings)), None)
+    device_class = next(
+        filter(None, (inferred_device_class(item, unit) for item in meanings)), None
+    )
+    state_class = next(
+        filter(None, (inferred_state_class(item, device_class) for item in meanings)),
+        None,
+    )
+    return unit, device_class, state_class
+
+
 def _sensor_text(description: dict[str, Any]) -> tuple[str, str]:
     key = str(description.get("key") or "").strip().lower()
     name = str(description.get("name") or "").strip().lower()

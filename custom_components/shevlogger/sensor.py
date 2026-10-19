@@ -13,11 +13,7 @@ from . import ShevLoggerRuntimeData
 from .const import DOMAIN
 from .coordinator import ShevLoggerCoordinator
 from .entity import ShevLoggerEntity
-from .sensor_metadata import (
-    inferred_device_class,
-    inferred_state_class,
-    inferred_unit,
-)
+from .sensor_metadata import resolve_sensor_metadata
 
 
 async def async_setup_entry(
@@ -50,12 +46,12 @@ class ShevLoggerSensor(ShevLoggerEntity, SensorEntity):
         description: dict[str, Any],
     ) -> None:
         super().__init__(coordinator, info, description)
-        unit = inferred_unit(description)
-        self._attr_native_unit_of_measurement = unit
-        self._attr_device_class = inferred_device_class(description, unit)
-        self._attr_state_class = inferred_state_class(
-            description, self._attr_device_class
+        unit, device_class, state_class = resolve_sensor_metadata(
+            description, info.get("mapping")
         )
+        self._attr_native_unit_of_measurement = unit
+        self._attr_device_class = device_class
+        self._attr_state_class = state_class
 
     @property
     def native_value(self) -> Any:

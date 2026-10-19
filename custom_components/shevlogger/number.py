@@ -14,7 +14,7 @@ from . import ShevLoggerRuntimeData
 from .const import DOMAIN
 from .coordinator import ShevLoggerCoordinator
 from .entity import ShevLoggerEntity, parse_numeric
-from .sensor_metadata import inferred_device_class, inferred_unit
+from .sensor_metadata import resolve_sensor_metadata
 
 
 async def async_setup_entry(
@@ -44,9 +44,8 @@ class ShevLoggerNumber(ShevLoggerEntity, NumberEntity):
         description: dict[str, Any],
     ) -> None:
         super().__init__(coordinator, info, description)
-        unit = inferred_unit(description)
+        unit, device_class, _ = resolve_sensor_metadata(description, info.get("mapping"))
         self._attr_native_unit_of_measurement = unit
-        device_class = inferred_device_class(description, unit)
         self._attr_device_class = None if device_class == "battery" else device_class
         self._attr_native_min_value = float(description.get("min", -32768))
         self._attr_native_max_value = float(description.get("max", 65535))
