@@ -1,55 +1,42 @@
-# ShevLogger for Home Assistant
+# SmartShev для Home Assistant
 
-[![HACS validation](https://github.com/AlexMarvel/ShevLogger-HA/actions/workflows/validate.yml/badge.svg)](https://github.com/AlexMarvel/ShevLogger-HA/actions/workflows/validate.yml)
-[![GitHub release](https://img.shields.io/github/v/release/AlexMarvel/ShevLogger-HA)](https://github.com/AlexMarvel/ShevLogger-HA/releases/latest)
+[![HACS validation](https://github.com/AlexMarvel/smartshev-ha/actions/workflows/validate.yml/badge.svg)](https://github.com/AlexMarvel/smartshev-ha/actions/workflows/validate.yml)
+[![GitHub release](https://img.shields.io/github/v/release/AlexMarvel/smartshev-ha)](https://github.com/AlexMarvel/smartshev-ha/releases/latest)
 
-Офіційна локальна інтеграція шлюзу **ShevLogger** з Home Assistant. Вона
-підключається до шлюзу напряму через домашню мережу, показує сенсори інвертора
-та дозволяє змінювати доступні параметри.
+Інтеграція **ShevLogger** додає показники інвертора й акумулятора до Home Assistant. Набір сенсорів визначає активний профіль шлюзу.
 
-Хмара SmartShev, MQTT і статична IP-адреса для роботи не потрібні.
+| Спосіб | Що доступно | Що потрібно |
+|---|---|---|
+| **Локальна мережа (LAN)** | Сенсори та доступні для запису параметри профілю, навіть без інтернету | Home Assistant має бачити шлюз у LAN. Потрібен приватний LAN-ключ від власника |
+| **Хмара SmartShev** | Сенсори вибраного шлюзу через HTTPS, зокрема з іншої мережі | Акаунт SmartShev, увімкнений віддалений доступ і тариф Full власника шлюзу. Потрібна версія 0.4.0 або новіша |
 
-## Можливості
+## Встановлення
 
-- автоматичний пошук ShevLogger через mDNS;
-- ручне підключення за IP-адресою або ім'ям хоста;
-- локальна авторизація приватним LAN-токеном;
-- сенсори, лічильники енергії та статистика Home Assistant;
-- керування параметрами, які доступні у вибраному профілі інвертора;
-- автоматичне оновлення набору сутностей після зміни профілю;
-- українська та англійська мови.
+Потрібні Home Assistant 2024.8 або новіший і ShevLogger з актуальною прошивкою.
 
-## Встановлення через HACS
+[![Відкрити репозиторій у HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=AlexMarvel&repository=smartshev-ha&category=integration)
 
-[![Відкрити репозиторій у HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=AlexMarvel&repository=ShevLogger-HA&category=integration)
-
-1. Додайте `https://github.com/AlexMarvel/ShevLogger-HA` до **HACS →
-   Інтеграції → Користувацькі репозиторії** як інтеграцію.
+1. Додайте `https://github.com/AlexMarvel/smartshev-ha` у **HACS → Інтеграції → Користувацькі репозиторії** як інтеграцію.
 2. Встановіть **ShevLogger** і перезапустіть Home Assistant.
-3. У SmartShev відкрийте **Шлюз → Фічі → Інтеграції → Home Assistant** та
-   скопіюйте LAN-токен.
-4. Відкрийте **Налаштування → Пристрої та служби** у Home Assistant і виберіть
-   знайдений ShevLogger.
+3. Відкрийте **Налаштування → Пристрої та служби**. Виберіть знайдений шлюз або натисніть **Додати інтеграцію → ShevLogger**.
 
-Якщо автоматичний пошук недоступний, додайте інтеграцію вручну та введіть
-локальну адресу шлюзу і LAN-токен.
+Для ручного встановлення скопіюйте `custom_components/shevlogger` до `/config/custom_components/shevlogger` і перезапустіть Home Assistant.
 
-## Ручне встановлення
+### Локальна мережа
 
-Скопіюйте `custom_components/shevlogger` до
-`/config/custom_components/shevlogger` і перезапустіть Home Assistant.
+У SmartShev відкрийте **Шлюз → Фічі → Інтеграції → Home Assistant** і скопіюйте LAN-ключ. Вставте його у Home Assistant. Для ручного підключення виберіть **Локальна мережа (LAN)** і введіть IP або ім’я хоста шлюзу ShevLogger. Пошук у мережі працює через mDNS.
 
-## Як це працює
+### Хмара SmartShev
 
-Home Assistant отримує всі поточні значення одним локальним запитом до шлюзу
-кожні три секунди. Кількість сенсорів не збільшує кількість запитів. Дані та
-керування залишаються доступними у локальній мережі без з'єднання з хмарою.
+Цей режим буде доступний після публікації 0.4.0 та оновлення вебкабінету SmartShev. Поточний реліз HACS підтримує LAN і відразу відкриває форму локальної адреси при ручному додаванні.
 
-## Вимоги
+1. У Home Assistant виберіть **Хмара SmartShev**.
+2. Увійдіть до вебкабінету, відкрийте картку **Home Assistant** і створіть одноразовий код. [Інтеграції у SmartShev](https://smartshev.pp.ua/account/integrations)
+3. Вставте код у Home Assistant протягом п’яти хвилин і виберіть шлюз зі списку. Для іншого шлюзу створіть окремий код.
+4. Хмарне підключення можна відкликати в активних сеансах акаунта SmartShev. Для повторного підключення відкрийте наявний запис у Home Assistant й отримайте новий код.
 
-- Home Assistant 2024.8 або новіший;
-- ShevLogger з актуальною прошивкою;
-- Home Assistant і шлюз у доступній локальній мережі;
-- LAN-токен зі SmartShev.
+## Оновлення після перейменування репозиторію
 
-[SmartShev](https://smartshev.pp.ua) · [Повідомити про проблему](https://github.com/AlexMarvel/ShevLogger-HA/issues)
+Актуальна адреса для HACS — `https://github.com/AlexMarvel/smartshev-ha`. Домен інтеграції `shevlogger` збережено, тому наявні пристрої, сутності й автоматизації продовжують використовувати попередні ідентифікатори.
+
+[SmartShev](https://smartshev.pp.ua) · [Повідомити про проблему](https://github.com/AlexMarvel/smartshev-ha/issues)
