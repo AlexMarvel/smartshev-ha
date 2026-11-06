@@ -3,7 +3,7 @@
 [![HACS validation](https://github.com/AlexMarvel/smartshev-ha/actions/workflows/validate.yml/badge.svg)](https://github.com/AlexMarvel/smartshev-ha/actions/workflows/validate.yml)
 [![GitHub release](https://img.shields.io/github/v/release/AlexMarvel/smartshev-ha)](https://github.com/AlexMarvel/smartshev-ha/releases/latest)
 
-Інтеграція **ShevLogger** додає показники інвертора й акумулятора до Home Assistant. Набір сенсорів визначає активний профіль шлюзу.
+Інтеграція **SmartShev** додає до Home Assistant показники інвертора й акумулятора зі шлюзу ShevLogger. Набір сенсорів визначає активний профіль шлюзу.
 
 | Спосіб | Що доступно | Що потрібно |
 |---|---|---|
@@ -17,10 +17,12 @@
 [![Відкрити репозиторій у HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=AlexMarvel&repository=smartshev-ha&category=integration)
 
 1. Додайте `https://github.com/AlexMarvel/smartshev-ha` у **HACS → Інтеграції → Користувацькі репозиторії** як інтеграцію.
-2. Встановіть **ShevLogger** і перезапустіть Home Assistant.
-3. Відкрийте **Налаштування → Пристрої та служби**. Виберіть знайдений шлюз або натисніть **Додати інтеграцію → ShevLogger**.
+2. Встановіть **SmartShev** і перезапустіть Home Assistant.
+3. Відкрийте **Налаштування → Пристрої та служби**. Виберіть знайдений шлюз або натисніть **Додати інтеграцію → SmartShev**.
 
-Для ручного встановлення скопіюйте `custom_components/shevlogger` до `/config/custom_components/shevlogger` і перезапустіть Home Assistant.
+### Ручне встановлення
+
+Скопіюйте папку [компонента](custom_components/shevlogger) до `/config/custom_components/` і перезапустіть Home Assistant. Назва папки `shevlogger` відповідає технічному домену, за яким Home Assistant знаходить наявні підключення та сутності.
 
 ### Локальна мережа
 
@@ -28,7 +30,7 @@
 
 ### Хмара SmartShev
 
-Цей режим буде доступний після публікації 0.4.0 та оновлення вебкабінету SmartShev. Поточний реліз HACS підтримує LAN і відразу відкриває форму локальної адреси при ручному додаванні.
+Цей режим буде доступний після публікації 0.4.0 та оновлення вебкабінету SmartShev. Поточний реліз 0.3.14 підтримує LAN і під час ручного додавання відразу відкриває форму локальної адреси.
 
 1. У Home Assistant виберіть **Хмара SmartShev**.
 2. Увійдіть до вебкабінету, відкрийте картку **Home Assistant** і створіть одноразовий код. [Інтеграції у SmartShev](https://smartshev.pp.ua/account/integrations)
@@ -37,6 +39,6 @@
 
 ## Оновлення після перейменування репозиторію
 
-Актуальна адреса для HACS — `https://github.com/AlexMarvel/smartshev-ha`. Домен інтеграції `shevlogger` збережено, тому наявні пристрої, сутності й автоматизації продовжують використовувати попередні ідентифікатори.
+Актуальна адреса для HACS — `https://github.com/AlexMarvel/smartshev-ha`. У релізі 0.3.14 інтеграція ще відображається як **ShevLogger**. Після оновлення до **SmartShev** наявні пристрої, сутності й автоматизації продовжують використовувати свої ідентифікатори.
 
 [SmartShev](https://smartshev.pp.ua) · [Повідомити про проблему](https://github.com/AlexMarvel/smartshev-ha/issues)

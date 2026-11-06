@@ -24,7 +24,7 @@
           "token": "LAN access token"
         },
         "description": "Copy the LAN access token from SmartShev to add {name}.",
-        "title": "Add discovered ShevLogger"
+        "title": "Add discovered ShevLogger gateway"
       },
       "user": {
         "data": {
@@ -32,10 +32,10 @@
           "token": "LAN access token"
         },
         "description": "Enter the local address and LAN access token from SmartShev gateway settings.",
-        "title": "Connect ShevLogger"
+        "title": "Connect the gateway over LAN"
       },
       "reconfigure": {
-        "title": "Edit ShevLogger address or token",
+        "title": "Edit gateway address or token",
         "description": "Enter this gateway's address. Leave the token blank to keep the saved token, or paste a replacement from SmartShev → Features → Integrations → Home Assistant. Sensors and automations are preserved.",
         "data": {
           "host": "IP address or hostname",
@@ -43,7 +43,7 @@
         }
       },
       "reauth_confirm": {
-        "title": "Restore ShevLogger access",
+        "title": "Restore access to the gateway",
         "description": "Check the address and paste this gateway's LAN token from SmartShev → Features → Integrations → Home Assistant. Do not delete the integration: validation updates the existing connection.",
         "data": {
           "host": "IP address or hostname",
