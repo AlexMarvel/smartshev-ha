@@ -29,4 +29,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME"
           --verify-tag
           --generate-notes
-          --title "ShevLogger $GITHUB_REF_NAME"
+          --title "SmartShev $GITHUB_REF_NAME"

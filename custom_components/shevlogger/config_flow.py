@@ -79,7 +79,7 @@ class ShevLoggerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="confirm",
             data_schema=vol.Schema({vol.Required(CONF_TOKEN): _token_selector()}),
             errors=errors,
-            description_placeholders={"name": self._discovered_name or "ShevLogger"},
+            description_placeholders={"name": self._discovered_name or "SmartShev"},
         )
 
     async def async_step_user(
@@ -222,7 +222,7 @@ class ShevLoggerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(device_id)
             self._abort_if_unique_id_configured(updates={CONF_HOST: normalized_host})
             return self.async_create_entry(
-                title=str(device.get("name") or "ShevLogger"),
+                title=str(device.get("name") or "SmartShev"),
                 data={CONF_HOST: normalized_host, CONF_TOKEN: token.strip()},
             )
 
@@ -232,7 +232,7 @@ class ShevLoggerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data_schema=vol.Schema({vol.Required(CONF_TOKEN): _token_selector()}),
                 errors=errors,
                 description_placeholders={
-                    "name": self._discovered_name or "ShevLogger"
+                    "name": self._discovered_name or "SmartShev"
                 },
             )
         return self._manual_form(errors)

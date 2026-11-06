@@ -50,9 +50,9 @@ class ShevLoggerEntity(CoordinatorEntity[ShevLoggerCoordinator]):
         self._attr_name = str(description.get("name") or self._key)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, str(device["id"]))},
-            name=str(device.get("name") or "ShevLogger"),
+            name=str(device.get("name") or "SmartShev"),
             manufacturer=str(device.get("manufacturer") or "SmartShev"),
-            model=str(device.get("model") or "ShevLogger"),
+            model=str(device.get("model") or "SmartShev"),
             sw_version=str(device.get("firmware") or ""),
             configuration_url=f"http://{coordinator.api.host}/",
         )
