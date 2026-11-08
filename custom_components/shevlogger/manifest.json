@@ -1,17 +1,13 @@
 {
   "domain": "shevlogger",
   "name": "SmartShev",
-  "codeowners": [
-    "@AlexMarvel"
-  ],
+  "codeowners": ["@AlexMarvel"],
   "config_flow": true,
   "documentation": "https://github.com/AlexMarvel/smartshev-ha",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/AlexMarvel/smartshev-ha/issues",
   "requirements": [],
-  "version": "0.3.15",
-  "zeroconf": [
-    "_shevlogger._tcp.local."
-  ]
+  "version": "0.4.0",
+  "zeroconf": ["_shevlogger._tcp.local."]
 }

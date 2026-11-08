@@ -20,10 +20,12 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from .api import (
     ShevLoggerApi,
     ShevLoggerAuthError,
+    ShevLoggerCloudApi,
     ShevLoggerConnectionError,
+    ShevLoggerError,
     normalize_host,
 )
-from .const import CONF_TOKEN, DOMAIN
+from .const import CLOUD_URL, CONF_CLOUD_TOKEN, CONF_TOKEN, DOMAIN
 
 
 def _token_selector() -> TextSelector:
@@ -51,6 +53,9 @@ class ShevLoggerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._discovered_host: str | None = None
         self._discovered_name: str | None = None
+        self._cloud_ticket = ""
+        self._cloud_devices: dict[str, str] = {}
+        self._cloud_recovery: str | None = None
 
     async def async_step_zeroconf(
         self, discovery_info: ZeroconfServiceInfo
@@ -61,7 +66,7 @@ class ShevLoggerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="invalid_discovery")
 
         await self.async_set_unique_id(device_id)
-        self._abort_if_unique_id_configured(updates={CONF_HOST: discovery_info.host})
+        self._abort_existing_lan(device_id, discovery_info.host)
         self._discovered_host = discovery_info.host
         self._discovered_name = properties.get("name") or discovery_info.name
         self.context["title_placeholders"] = {"name": self._discovered_name}
@@ -82,19 +87,22 @@ class ShevLoggerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={"name": self._discovered_name or "SmartShev"},
         )
 
-    async def async_step_user(
+    async def async_step_user(self, user_input=None) -> ConfigFlowResult:
+        return self.async_show_menu(step_id="user", menu_options=["lan", "cloud"])
+
+    async def async_step_lan(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
             return await self._validate_and_create(
-                user_input[CONF_HOST], user_input[CONF_TOKEN], errors, "user"
+                user_input[CONF_HOST], user_input[CONF_TOKEN], errors, "lan"
             )
         return self._manual_form(errors)
 
     def _manual_form(self, errors: dict[str, str]) -> ConfigFlowResult:
         return self.async_show_form(
-            step_id="user",
+            step_id="lan",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_HOST): str,
@@ -102,6 +110,94 @@ class ShevLoggerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+        )
+
+    def _abort_existing_lan(self, device_id: str, host: str) -> None:
+        for entry in self.hass.config_entries.async_entries(DOMAIN):
+            if entry.unique_id == device_id and CONF_CLOUD_TOKEN in entry.data:
+                self._abort_if_unique_id_configured()
+        self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+
+    async def async_step_cloud(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        errors = {}
+        if user_input is not None:
+            self._cloud_ticket = ""
+            self._cloud_devices = {}
+            client = ShevLoggerCloudApi(async_get_clientsession(self.hass))
+            try:
+                response = await client.async_exchange(user_input["code"])
+                ticket = response.get("ticket")
+                devices = response.get("devices")
+                if not isinstance(ticket, str) or not ticket or not isinstance(devices, list):
+                    raise ShevLoggerConnectionError("Invalid SmartShev device list")
+                self._cloud_devices = {
+                    device["id"]: (
+                        device["id"] if device["name"] == device["id"]
+                        else f"{device['name']} · {device['id']}"
+                    )
+                    for device in devices
+                    if isinstance(device, dict) and isinstance(device.get("id"), str)
+                    and isinstance(device.get("name"), str)
+                }
+            except ShevLoggerAuthError as error:
+                errors["base"] = error.reason
+            except ShevLoggerConnectionError:
+                errors["base"] = "cloud_unreachable"
+            else:
+                if self._cloud_recovery:
+                    entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+                    if entry is None or entry.unique_id not in self._cloud_devices:
+                        errors["base"] = "device_access_denied"
+                    else:
+                        self._cloud_devices = {entry.unique_id: self._cloud_devices[entry.unique_id]}
+                elif not self._cloud_devices:
+                    errors["base"] = "no_cloud_devices"
+                if not errors:
+                    self._cloud_ticket = ticket
+                    return await self.async_step_cloud_device()
+        return self.async_show_form(
+            step_id="cloud",
+            data_schema=vol.Schema({vol.Required("code"): _token_selector()}),
+            description_placeholders={"account_url": f"{CLOUD_URL}/account/integrations"},
+            errors=errors,
+        )
+
+    async def async_step_cloud_device(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if not self._cloud_ticket:
+            return await self.async_step_cloud()
+        if user_input is not None and user_input["device"] in self._cloud_devices:
+            device_id = user_input["device"]
+            entry = None
+            if self._cloud_recovery:
+                entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+                if entry is None or entry.unique_id != device_id or CONF_CLOUD_TOKEN not in entry.data:
+                    return self.async_abort(reason="entry_changed")
+                original_data = entry.data
+            else:
+                await self.async_set_unique_id(device_id)
+                self._abort_if_unique_id_configured()
+            client = ShevLoggerCloudApi(async_get_clientsession(self.hass), self._cloud_ticket)
+            self._cloud_ticket = ""
+            try:
+                token = await client.async_connect(device_id)
+            except ShevLoggerError:
+                return self.async_abort(reason="cloud_link_failed")
+            if entry is not None:
+                if self.hass.config_entries.async_get_entry(entry.entry_id) is not entry or entry.data != original_data:
+                    return self.async_abort(reason="entry_changed")
+                return self.async_update_reload_and_abort(
+                    entry, data={CONF_CLOUD_TOKEN: token}, reason=self._cloud_recovery,
+                )
+            return self.async_create_entry(
+                title=self._cloud_devices[device_id], data={CONF_CLOUD_TOKEN: token},
+            )
+        return self.async_show_form(
+            step_id="cloud_device",
+            data_schema=vol.Schema({vol.Required("device"): vol.In(self._cloud_devices)}),
         )
 
     async def async_step_reconfigure(
@@ -132,6 +228,11 @@ class ShevLoggerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="entry_not_found")
         if not entry.unique_id:
             return self.async_abort(reason="missing_identity")
+        if CONF_CLOUD_TOKEN in entry.data:
+            self._cloud_recovery = (
+                "reauth_successful" if step_id == "reauth_confirm" else "reconfigure_successful"
+            )
+            return await self.async_step_cloud()
 
         errors: dict[str, str] = {}
         host = entry.data[CONF_HOST]
@@ -220,7 +321,7 @@ class ShevLoggerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["base"] = "invalid_host"
         else:
             await self.async_set_unique_id(device_id)
-            self._abort_if_unique_id_configured(updates={CONF_HOST: normalized_host})
+            self._abort_existing_lan(device_id, normalized_host)
             return self.async_create_entry(
                 title=str(device.get("name") or "SmartShev"),
                 data={CONF_HOST: normalized_host, CONF_TOKEN: token.strip()},

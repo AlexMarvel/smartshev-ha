@@ -26,6 +26,9 @@ class ConfigFlow:
     def async_show_form(self, **kwargs):
         return {"type": "form", **kwargs}
 
+    def async_show_menu(self, **kwargs):
+        return {"type": "menu", **kwargs}
+
     def async_abort(self, *, reason):
         return {"type": "abort", "reason": reason}
 
@@ -129,8 +132,8 @@ def load_entity_platforms():
 
     replacements = {
         name: package,
-        f"{name}.api": module(f"{name}.api", ShevLoggerError=Exception),
-        f"{name}.const": module(f"{name}.const", DOMAIN="shevlogger"),
+        f"{name}.api": module(f"{name}.api", ShevLoggerError=Exception, ShevLoggerCloudApi=type("CloudApi", (), {})),
+        f"{name}.const": module(f"{name}.const", DOMAIN="shevlogger", CLOUD_URL="https://smartshev.pp.ua"),
         f"{name}.coordinator": module(
             f"{name}.coordinator", ShevLoggerCoordinator=object
         ),
@@ -188,7 +191,9 @@ class FakeHass:
         self.session = object()
         self.updates = []
         self.reloads = []
-        self.config_entries = SimpleNamespace(async_get_entry=self.get_entry)
+        self.config_entries = SimpleNamespace(
+            async_get_entry=self.get_entry, async_entries=lambda domain: [self.entry] if self.entry else [],
+        )
 
     def get_entry(self, entry_id):
         return self.entry if self.entry and self.entry.entry_id == entry_id else None

@@ -30,6 +30,20 @@ class Session:
 
 
 class ApiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cloud_pairing_uses_https_and_does_not_retry_one_time_codes(self):
+        session = Session(502, b'')
+        client = API.ShevLoggerCloudApi(session)
+        with self.assertRaises(API.ShevLoggerConnectionError):
+            await client.async_exchange(" one-time-test-code ")
+        self.assertEqual(len(session.calls), 1)
+        args, kwargs = session.calls[0]
+        self.assertEqual(args, ("POST", "https://smartshev.pp.ua/api/v1/home-assistant/exchange"))
+        self.assertEqual(kwargs["json"], {"code": "one-time-test-code"})
+        self.assertFalse(kwargs["allow_redirects"])
+        with self.assertRaisesRegex(API.ShevLoggerConnectionError, "read-only"):
+            await client.async_write("setting", 1)
+        self.assertEqual(len(session.calls), 1)
+
     async def test_real_http_rejects_old_token_and_accepts_replacement(self):
         calls = []
 

@@ -27,6 +27,49 @@ class ConfigFlowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.hass.updates, [])
         self.assertEqual(self.hass.reloads, [])
 
+    async def test_connection_menu_includes_both_transports(self):
+        result = await self.flow.async_step_user()
+        self.assertEqual(result["menu_options"], ["lan", "cloud"])
+
+    async def test_cloud_lists_then_connects_selected_gateway(self):
+        with patch.object(FLOW, "ShevLoggerCloudApi") as cloud:
+            client = cloud.return_value
+            client.async_exchange = AsyncMock(return_value={
+                "ticket": "private-selection-ticket",
+                "devices": [{"id": "SL-ONE", "name": "Home"}, {"id": "SL-TWO", "name": "Workshop"}],
+            })
+            client.async_connect = AsyncMock(return_value="private-device-grant")
+            code = await self.flow.async_step_cloud()
+            self.assertIn("/account/integrations", code["description_placeholders"]["account_url"])
+            selection = await self.flow.async_step_cloud({"code": "one-time-code"})
+            self.assertEqual(selection["step_id"], "cloud_device")
+            self.assertNotIn("private-selection-ticket", str(selection))
+            with self.assertRaises(vol.Invalid):
+                selection["data_schema"]({"device": "SL-NOT-LISTED"})
+            result = await self.flow.async_step_cloud_device({"device": "SL-TWO"})
+            client.async_connect.assert_awaited_once_with("SL-TWO")
+            self.assertEqual(self.flow.unique_id, "SL-TWO")
+            self.assertEqual(result["data"], {"cloud_token": "private-device-grant"})
+            self.unchanged()
+
+    async def test_cloud_reauth_only_replaces_grant_for_same_gateway(self):
+        self.entry.data = {"cloud_token": "old-grant"}
+        with patch.object(FLOW, "ShevLoggerCloudApi") as cloud:
+            client = cloud.return_value
+            client.async_exchange = AsyncMock(return_value={
+                "ticket": "ticket",
+                "devices": [{"id": "SL-TEST", "name": "Home"}, {"id": "SL-OTHER", "name": "Workshop"}],
+            })
+            client.async_connect = AsyncMock(return_value="new-grant")
+            self.assertEqual((await self.flow.async_step_reauth(self.entry.data))["step_id"], "cloud")
+            selection = await self.flow.async_step_cloud({"code": "code"})
+            with self.assertRaises(vol.Invalid):
+                selection["data_schema"]({"device": "SL-OTHER"})
+            result = await self.flow.async_step_cloud_device({"device": "SL-TEST"})
+            self.assertEqual(result["reason"], "reauth_successful")
+            self.assertEqual(self.entry.data, {"cloud_token": "new-grant"})
+            self.assertEqual(self.hass.reloads, ["original-entry"])
+
     def token_field(self, result):
         schema = result["data_schema"].schema
         field = next(key for key in schema if key.schema == "token")
@@ -192,7 +235,7 @@ class ConfigFlowTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_initial_setup_still_creates_entry_with_valid_identity(self):
         self.hass.entry = None
-        result = await self.flow.async_step_user(
+        result = await self.flow.async_step_lan(
             {"host": "logger.local", "token": " new-secret "}
         )
         self.assertEqual(result["type"], "create_entry")
@@ -203,14 +246,14 @@ class ConfigFlowTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_existing_logger_cannot_be_duplicated_by_manual_setup(self):
         with self.assertRaises(FlowAbort) as error:
-            await self.flow.async_step_user(
+            await self.flow.async_step_lan(
                 {"host": "logger.local", "token": "stored-secret"}
             )
         self.assertEqual(error.exception.reason, "already_configured")
         self.unchanged()
 
     async def test_all_initial_forms_mask_token(self):
-        self.token_field(await self.flow.async_step_user())
+        self.token_field(await self.flow.async_step_lan())
         self.token_field(await self.flow.async_step_confirm())
 
 

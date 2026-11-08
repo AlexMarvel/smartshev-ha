@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 from aiohttp import ClientError, ClientResponse, ClientSession, ClientTimeout
 
 from .const import (
+    CLOUD_URL,
     HTTP_REQUEST_ATTEMPTS,
     HTTP_REQUEST_TIMEOUT_SECONDS,
     HTTP_RETRY_DELAY_SECONDS,
@@ -31,6 +32,9 @@ class ShevLoggerAuthError(ShevLoggerError):
             "invalid_auth": "LAN access token does not match the gateway",
             "missing_bearer": "Gateway did not receive a Bearer authorization header",
             "auth_rejected": "LAN authorization rejected; check the gateway address and token",
+            "invalid_pairing": "The Home Assistant pairing code has expired or was already used",
+            "invalid_cloud_grant": "The SmartShev cloud connection needs to be linked again",
+            "device_access_denied": "This gateway no longer has SmartShev cloud access",
         }
         self.reason = reason if reason in messages else "auth_rejected"
         super().__init__(f"{messages[self.reason]} (HTTP {status})")
@@ -156,6 +160,10 @@ class ShevLoggerApi:
                     reason = "invalid_auth"
                 elif payload.get("error") == "missing_bearer":
                     reason = "missing_bearer"
+                elif payload.get("error") in (
+                    "invalid_pairing", "invalid_cloud_grant", "device_access_denied"
+                ):
+                    reason = payload["error"]
             raise ShevLoggerAuthError(response.status, reason)
         if 300 <= response.status < 400:
             await response.read()
@@ -212,3 +220,31 @@ class ShevLoggerApi:
                 str(payload.get("error") or "The inverter rejected the value")
             )
         return payload
+
+
+class ShevLoggerCloudApi(ShevLoggerApi):
+    """Read-only connection to one gateway via the SmartShev cloud."""
+
+    def __init__(self, session: ClientSession, token: str = "") -> None:
+        self._session = session
+        self.host = urlsplit(CLOUD_URL).hostname or ""
+        self._token = token
+        self._base_url = f"{CLOUD_URL}/api/v1/home-assistant"
+
+    async def async_exchange(self, code: str) -> dict[str, Any]:
+        return await self._json_once("exchange", method="POST", json={"code": code.strip()})
+
+    async def async_connect(self, device_id: str) -> str:
+        result = await self._json_once("connect", method="POST", json={"deviceId": device_id})
+        if not isinstance(token := result.get("token"), str) or not token:
+            raise ShevLoggerConnectionError("Invalid SmartShev cloud grant")
+        return token
+
+    async def async_get_schema(self) -> dict[str, Any]:
+        result = await self._json("schema")
+        if not isinstance(result.get("entities"), list):
+            raise ShevLoggerConnectionError("Invalid entity catalogue")
+        return result
+
+    async def async_write(self, key: str, value: int | float) -> dict[str, Any]:
+        raise ShevLoggerConnectionError("SmartShev cloud integration is read-only")

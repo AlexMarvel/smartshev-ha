@@ -11,8 +11,8 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import ShevLoggerApi, ShevLoggerAuthError, ShevLoggerError
-from .const import CONF_TOKEN, DOMAIN, PLATFORMS
+from .api import ShevLoggerApi, ShevLoggerAuthError, ShevLoggerCloudApi, ShevLoggerError
+from .const import CONF_CLOUD_TOKEN, CONF_TOKEN, DOMAIN, PLATFORMS
 from .coordinator import ShevLoggerCoordinator
 from .optional_entities import active_entities, entity_is_active, entity_platform
 
@@ -27,11 +27,14 @@ class ShevLoggerRuntimeData:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    api = ShevLoggerApi(
-        async_get_clientsession(hass), entry.data["host"], entry.data[CONF_TOKEN]
-    )
+    session = async_get_clientsession(hass)
+    cloud = CONF_CLOUD_TOKEN in entry.data
+    api = (ShevLoggerCloudApi(session, entry.data[CONF_CLOUD_TOKEN]) if cloud
+           else ShevLoggerApi(session, entry.data["host"], entry.data[CONF_TOKEN]))
     try:
         info = await api.async_get_state()
+        if cloud and (info.get("device") or {}).get("id") != entry.unique_id:
+            raise ConfigEntryAuthFailed("SmartShev returned a different gateway")
         entity_payload = await api.async_get_schema()
     except ShevLoggerAuthError as error:
         raise ConfigEntryAuthFailed(str(error)) from error

@@ -9,7 +9,8 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import ShevLoggerError
-from .const import DOMAIN
+from .const import CLOUD_URL, DOMAIN
+from .api import ShevLoggerCloudApi
 from .coordinator import ShevLoggerCoordinator
 
 
@@ -54,7 +55,9 @@ class ShevLoggerEntity(CoordinatorEntity[ShevLoggerCoordinator]):
             manufacturer=str(device.get("manufacturer") or "SmartShev"),
             model=str(device.get("model") or "SmartShev"),
             sw_version=str(device.get("firmware") or ""),
-            configuration_url=f"http://{coordinator.api.host}/",
+            configuration_url=(f"{CLOUD_URL}/account/devices/{device['id']}"
+                               if isinstance(coordinator.api, ShevLoggerCloudApi)
+                               else f"http://{coordinator.api.host}/"),
         )
 
     @property

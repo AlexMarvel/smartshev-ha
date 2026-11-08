@@ -12,7 +12,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import ShevLoggerApi, ShevLoggerAuthError, ShevLoggerError
 from .availability import AvailabilityTracker
-from .const import AVAILABILITY_GRACE_SECONDS, DEFAULT_SCAN_INTERVAL_SECONDS, DOMAIN
+from .const import (
+    AVAILABILITY_GRACE_SECONDS, CLOUD_SCAN_INTERVAL_SECONDS, CONF_CLOUD_TOKEN,
+    DEFAULT_SCAN_INTERVAL_SECONDS, DOMAIN,
+)
 from .optional_entities import optional_presence_signature
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,7 +37,10 @@ class ShevLoggerCoordinator(DataUpdateCoordinator[dict]):
             logger=_LOGGER,
             name=DOMAIN,
             config_entry=entry,
-            update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL_SECONDS),
+            update_interval=timedelta(seconds=(
+                CLOUD_SCAN_INTERVAL_SECONDS if CONF_CLOUD_TOKEN in entry.data
+                else DEFAULT_SCAN_INTERVAL_SECONDS
+            )),
         )
         self.api = api
         self.meta_revision = meta_revision

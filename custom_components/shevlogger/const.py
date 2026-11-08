@@ -7,6 +7,9 @@ from homeassistant.const import Platform
 DOMAIN = "shevlogger"
 
 CONF_TOKEN = "token"
+CONF_CLOUD_TOKEN = "cloud_token"
+CLOUD_URL = "https://smartshev.pp.ua"
+CLOUD_SCAN_INTERVAL_SECONDS = 15
 DEFAULT_SCAN_INTERVAL_SECONDS = 3
 AVAILABILITY_GRACE_SECONDS = 30
 HTTP_REQUEST_ATTEMPTS = 2

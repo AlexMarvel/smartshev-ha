@@ -7,7 +7,8 @@
       "reauth_successful": "Access restored. The integration is reloading.",
       "entry_not_found": "This integration entry was removed. Close this form.",
       "missing_identity": "The saved gateway has no device identity. Settings were not changed.",
-      "entry_changed": "Settings changed during validation. Open the form again."
+      "entry_changed": "Settings changed during validation. Open the form again.",
+      "cloud_link_failed": "The gateway could not be linked. Create a new code in SmartShev."
     },
     "error": {
       "cannot_connect": "Cannot connect to the gateway.",
@@ -16,7 +17,12 @@
       "auth_rejected": "Access was refused without a specific reason. Check the gateway address and LAN token.",
       "invalid_host": "Enter the gateway IPv4 address or hostname. HTTP port 80 is used; no path, password or URL parameters.",
       "token_required": "Paste this gateway's LAN token from SmartShev.",
-      "wrong_device": "A different gateway answered at this address. Settings were not changed."
+      "wrong_device": "A different gateway answered at this address. Settings were not changed.",
+      "invalid_pairing": "This code expired or was already used. Create a new code.",
+      "device_access_denied": "This gateway is no longer available via the cloud.",
+      "no_cloud_devices": "This account has no gateways with remote access and the Full plan.",
+      "cloud_unreachable": "Could not reach SmartShev Cloud.",
+      "invalid_cloud_grant": "Link the cloud connection again."
     },
     "step": {
       "confirm": {
@@ -27,15 +33,15 @@
         "title": "Add discovered SmartShev gateway"
       },
       "user": {
-        "data": {
-          "host": "IP address or hostname",
-          "token": "LAN access token"
-        },
-        "description": "Enter the local address and LAN access token from SmartShev gateway settings.",
-        "title": "Connect ShevLogger"
+        "title": "Connect SmartShev",
+        "description": "Choose how to connect the gateway.",
+        "menu_options": {
+          "lan": "Local network (LAN)",
+          "cloud": "SmartShev Cloud"
+        }
       },
       "reconfigure": {
-        "title": "Edit ShevLogger address or token",
+        "title": "Edit gateway address or token",
         "description": "Enter this gateway's address. Leave the token blank to keep the saved token, or paste a replacement from SmartShev → Features → Integrations → Home Assistant. Sensors and automations are preserved.",
         "data": {
           "host": "IP address or hostname",
@@ -43,11 +49,33 @@
         }
       },
       "reauth_confirm": {
-        "title": "Restore ShevLogger access",
+        "title": "Restore access to the gateway",
         "description": "Check the address and paste this gateway's LAN token from SmartShev → Features → Integrations → Home Assistant. Do not delete the integration: validation updates the existing connection.",
         "data": {
           "host": "IP address or hostname",
           "token": "LAN access token"
+        }
+      },
+      "lan": {
+        "data": {
+          "host": "IP address or hostname",
+          "token": "LAN access token"
+        },
+        "description": "Enter the local address and LAN access token from SmartShev gateway settings.",
+        "title": "Connect the gateway over LAN"
+      },
+      "cloud": {
+        "title": "SmartShev Cloud",
+        "description": "[Sign in to SmartShev]({account_url}), open the Home Assistant card, and create a one-time code. Paste it below.",
+        "data": {
+          "code": "One-time code"
+        }
+      },
+      "cloud_device": {
+        "title": "Choose a gateway",
+        "description": "Choose the gateway whose sensors you want to add.",
+        "data": {
+          "device": "Gateway"
         }
       }
     }
