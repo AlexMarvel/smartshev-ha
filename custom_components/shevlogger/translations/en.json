@@ -8,7 +8,9 @@
       "entry_not_found": "This integration entry was removed. Close this form.",
       "missing_identity": "The saved gateway has no device identity. Settings were not changed.",
       "entry_changed": "Settings changed during validation. Open the form again.",
-      "cloud_link_failed": "The gateway could not be linked. Create a new code in SmartShev."
+      "cloud_link_failed": "Could not link the gateway. Start the connection again.",
+      "account_link_unavailable": "Cannot start SmartShev sign-in. Try again or use manual local setup.",
+      "no_account_gateways": "There are no gateways available to connect on this account."
     },
     "error": {
       "cannot_connect": "Cannot connect to the gateway.",
@@ -20,9 +22,11 @@
       "wrong_device": "A different gateway answered at this address. Settings were not changed.",
       "invalid_pairing": "This code expired or was already used. Create a new code.",
       "device_access_denied": "This gateway is no longer available via the cloud.",
-      "no_cloud_devices": "This account has no gateways with remote access and the Full plan.",
       "cloud_unreachable": "Could not reach SmartShev Cloud.",
-      "invalid_cloud_grant": "Link the cloud connection again."
+      "invalid_cloud_grant": "Link the cloud connection again.",
+      "account_link_expired": "The link expired. Open the new SmartShev link above.",
+      "account_link_pending": "Confirm the connection in SmartShev and then continue here.",
+      "invalid_local_address": "Enter the gateway’s private IPv4 address or its suggested local hostname."
     },
     "step": {
       "confirm": {
@@ -34,10 +38,36 @@
       },
       "user": {
         "title": "Connect SmartShev",
-        "description": "Choose how to connect the gateway.",
+        "description": "Sign in to choose a gateway, or use manual local setup without internet.",
         "menu_options": {
-          "lan": "Local network (LAN)",
-          "cloud": "SmartShev Cloud"
+          "account": "Sign in to SmartShev",
+          "lan": "Manual local setup"
+        }
+      },
+      "account": {
+        "title": "Sign in to SmartShev",
+        "description": "[Open SmartShev]({account_url}), sign in and approve the connection. Then return here and continue."
+      },
+      "account_device": {
+        "title": "Select a gateway",
+        "description": "Choose a gateway from your SmartShev account.",
+        "data": {
+          "device": "Gateway"
+        }
+      },
+      "account_mode": {
+        "title": "Connection method",
+        "description": "Choose how to connect {name}.",
+        "menu_options": {
+          "account_lan": "Local (LAN)",
+          "account_cloud": "SmartShev Cloud"
+        }
+      },
+      "account_lan": {
+        "title": "Local gateway address",
+        "description": "Home Assistant must be able to reach {name} on your local network.",
+        "data": {
+          "host": "Local gateway address"
         }
       },
       "reconfigure": {
@@ -63,20 +93,6 @@
         },
         "description": "Enter the local address and LAN access token from SmartShev gateway settings.",
         "title": "Connect the gateway over LAN"
-      },
-      "cloud": {
-        "title": "SmartShev Cloud",
-        "description": "[Sign in to SmartShev]({account_url}), open the Home Assistant card, and create a one-time code. Paste it below.",
-        "data": {
-          "code": "One-time code"
-        }
-      },
-      "cloud_device": {
-        "title": "Choose a gateway",
-        "description": "Choose the gateway whose sensors you want to add.",
-        "data": {
-          "device": "Gateway"
-        }
       }
     }
   }

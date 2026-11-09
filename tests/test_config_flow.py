@@ -27,45 +27,75 @@ class ConfigFlowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.hass.updates, [])
         self.assertEqual(self.hass.reloads, [])
 
-    async def test_connection_menu_includes_both_transports(self):
+    async def test_connection_menu_prioritizes_account_and_keeps_offline_setup(self):
         result = await self.flow.async_step_user()
-        self.assertEqual(result["menu_options"], ["lan", "cloud"])
+        self.assertEqual(result["menu_options"], ["account", "lan"])
 
-    async def test_cloud_lists_then_connects_selected_gateway(self):
+    async def account_selection(self, cloud, device_id):
+        client = cloud.return_value
+        client.async_begin_account_link = AsyncMock(return_value={
+            "code": "c" * 32, "approval": "a" * 32,
+        })
+        client.async_poll_account_link = AsyncMock(side_effect=[
+            {"pending": True},
+            {"ticket": "private-selection-ticket", "devices": [
+                {"id": "SL-ONE", "name": "Home", "lan": True, "cloud": True},
+                {"id": "SL-TWO", "name": "Workshop", "lan": False, "cloud": True},
+            ]},
+        ])
+        client.async_connect_account = AsyncMock(return_value="private-device-credential")
+        authorization = await self.flow.async_step_account()
+        self.assertIn("/account/connect-home-assistant#", authorization["description_placeholders"]["account_url"])
+        self.assertNotIn("c" * 32, str(authorization))
+        pending = await self.flow.async_step_account({})
+        self.assertEqual(pending["errors"]["base"], "account_link_pending")
+        selection = await self.flow.async_step_account({})
+        self.assertEqual(selection["step_id"], "account_device")
+        self.assertNotIn("private-selection-ticket", str(selection))
+        client.async_connect_account.assert_not_called()
+        modes = await self.flow.async_step_account_device({"device": device_id})
+        return client, modes
+
+    async def test_account_chooses_gateway_then_only_permitted_modes(self):
         with patch.object(FLOW, "ShevLoggerCloudApi") as cloud:
-            client = cloud.return_value
-            client.async_exchange = AsyncMock(return_value={
-                "ticket": "private-selection-ticket",
-                "devices": [{"id": "SL-ONE", "name": "Home"}, {"id": "SL-TWO", "name": "Workshop"}],
-            })
-            client.async_connect = AsyncMock(return_value="private-device-grant")
-            code = await self.flow.async_step_cloud()
-            self.assertIn("/account/integrations", code["description_placeholders"]["account_url"])
-            selection = await self.flow.async_step_cloud({"code": "one-time-code"})
-            self.assertEqual(selection["step_id"], "cloud_device")
-            self.assertNotIn("private-selection-ticket", str(selection))
-            with self.assertRaises(vol.Invalid):
-                selection["data_schema"]({"device": "SL-NOT-LISTED"})
-            result = await self.flow.async_step_cloud_device({"device": "SL-TWO"})
-            client.async_connect.assert_awaited_once_with("SL-TWO")
+            client, modes = await self.account_selection(cloud, "SL-TWO")
+            self.assertEqual(modes["menu_options"], ["account_cloud"])
+            result = await self.flow.async_step_account_cloud()
+            client.async_connect_account.assert_awaited_once_with("SL-TWO", "cloud")
             self.assertEqual(self.flow.unique_id, "SL-TWO")
-            self.assertEqual(result["data"], {"cloud_token": "private-device-grant"})
-            self.unchanged()
+            self.assertEqual(result["data"], {"cloud_token": "private-device-credential"})
+
+    async def test_account_lan_validates_address_and_matches_the_selected_gateway(self):
+        with patch.object(FLOW, "ShevLoggerCloudApi") as cloud:
+            client, modes = await self.account_selection(cloud, "SL-ONE")
+            self.assertEqual(modes["menu_options"], ["account_lan", "account_cloud"])
+            unsafe = await self.flow.async_step_account_lan({"host": "8.8.8.8"})
+            self.assertEqual(unsafe["errors"]["host"], "invalid_local_address")
+            client.async_connect_account.assert_not_called()
+            different = await self.flow.async_step_account_lan()
+            self.assertEqual(different["errors"]["base"], "wrong_device")
+            self.assertNotIn("private-device-credential", str(different))
+            self.read.return_value = {"device": {"id": "SL-ONE"}}
+            result = await self.flow.async_step_account_lan({"host": "192.168.1.50"})
+            client.async_connect_account.assert_awaited_once_with("SL-ONE", "lan")
+            self.assertEqual(result["data"], {"host": "192.168.1.50", "token": "private-device-credential"})
 
     async def test_cloud_reauth_only_replaces_grant_for_same_gateway(self):
         self.entry.data = {"cloud_token": "old-grant"}
         with patch.object(FLOW, "ShevLoggerCloudApi") as cloud:
             client = cloud.return_value
-            client.async_exchange = AsyncMock(return_value={
-                "ticket": "ticket",
-                "devices": [{"id": "SL-TEST", "name": "Home"}, {"id": "SL-OTHER", "name": "Workshop"}],
+            client.async_begin_account_link = AsyncMock(return_value={
+                "code": "c" * 32, "approval": "a" * 32,
             })
-            client.async_connect = AsyncMock(return_value="new-grant")
-            self.assertEqual((await self.flow.async_step_reauth(self.entry.data))["step_id"], "cloud")
-            selection = await self.flow.async_step_cloud({"code": "code"})
-            with self.assertRaises(vol.Invalid):
-                selection["data_schema"]({"device": "SL-OTHER"})
-            result = await self.flow.async_step_cloud_device({"device": "SL-TEST"})
+            client.async_poll_account_link = AsyncMock(return_value={
+                "ticket": "ticket",
+                "devices": [{"id": "SL-TEST", "name": "Home", "cloud": True},
+                            {"id": "SL-OTHER", "name": "Workshop", "cloud": True}],
+            })
+            client.async_connect_account = AsyncMock(return_value="new-grant")
+            self.assertEqual((await self.flow.async_step_reauth(self.entry.data))["step_id"], "account")
+            result = await self.flow.async_step_account({})
+            client.async_connect_account.assert_awaited_once_with("SL-TEST", "cloud")
             self.assertEqual(result["reason"], "reauth_successful")
             self.assertEqual(self.entry.data, {"cloud_token": "new-grant"})
             self.assertEqual(self.hass.reloads, ["original-entry"])

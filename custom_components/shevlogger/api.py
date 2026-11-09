@@ -231,13 +231,18 @@ class ShevLoggerCloudApi(ShevLoggerApi):
         self._token = token
         self._base_url = f"{CLOUD_URL}/api/v1/home-assistant"
 
-    async def async_exchange(self, code: str) -> dict[str, Any]:
-        return await self._json_once("exchange", method="POST", json={"code": code.strip()})
+    async def async_begin_account_link(self) -> dict[str, Any]:
+        return await self._json_once("account-link/start", method="POST", json={})
 
-    async def async_connect(self, device_id: str) -> str:
-        result = await self._json_once("connect", method="POST", json={"deviceId": device_id})
+    async def async_poll_account_link(self, code: str) -> dict[str, Any]:
+        return await self._json_once("account-link/poll", method="POST", json={"code": code})
+
+    async def async_connect_account(self, device_id: str, mode: str) -> str:
+        result = await self._json_once(
+            "account-link/connect", method="POST", json={"deviceId": device_id, "mode": mode}
+        )
         if not isinstance(token := result.get("token"), str) or not token:
-            raise ShevLoggerConnectionError("Invalid SmartShev cloud grant")
+            raise ShevLoggerConnectionError("Invalid SmartShev gateway credential")
         return token
 
     async def async_get_schema(self) -> dict[str, Any]:
